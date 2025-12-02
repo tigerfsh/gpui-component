@@ -3900,6 +3900,7 @@ dependencies = [
  "gpui-component",
  "gpui-component-assets",
  "json5",
+ "serde",
  "serde_json",
 ]
 

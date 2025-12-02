@@ -2,9 +2,13 @@ use gpui::*;
 use gpui_component::{
     button::*,
     input::{Input, InputEvent, InputState},
+    menu::DropdownMenu,
+    theme::Theme,
+    TitleBar,
     *,
 };
 use gpui_component_assets::Assets;
+use serde::Deserialize;
 use std::time::Instant;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -19,6 +23,13 @@ enum Language {
     Chinese,
 }
 
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = json_formatter, no_json)]
+enum JsonFormatterAction {
+    ToggleLanguage,
+    ToggleTheme,
+    Quit,
+}
 
 pub struct JsonFormatter {
     input_state: Entity<InputState>,
@@ -196,6 +207,9 @@ impl JsonFormatter {
                 "status_formatted" => "JSON formatted successfully",
                 "status_minified" => "JSON minified successfully",
                 "error_prefix" => "Error: ",
+                "menu_language" => "Toggle Language",
+                "menu_theme" => "Toggle Theme",
+                "menu_quit" => "Quit",
                 _ => key,
             },
             Language::Chinese => match key {
@@ -208,9 +222,33 @@ impl JsonFormatter {
                 "status_formatted" => "JSON 格式化成功",
                 "status_minified" => "JSON 压缩成功",
                 "error_prefix" => "错误: ",
+                "menu_language" => "切换语言",
+                "menu_theme" => "切换主题",
+                "menu_quit" => "退出",
                 _ => key,
             },
         }
+    }
+
+    fn on_action_toggle_language(&mut self, _: &JsonFormatterAction, _: &mut Window, cx: &mut Context<Self>) {
+        self.language = match self.language {
+            Language::English => Language::Chinese,
+            Language::Chinese => Language::English,
+        };
+        cx.notify();
+    }
+
+    fn on_action_toggle_theme(&mut self, _: &JsonFormatterAction, window: &mut Window, cx: &mut Context<Self>) {
+        let current_mode = Theme::global(cx).mode;
+        let new_mode = match current_mode {
+            gpui_component::theme::ThemeMode::Light => gpui_component::theme::ThemeMode::Dark,
+            gpui_component::theme::ThemeMode::Dark => gpui_component::theme::ThemeMode::Light,
+        };
+        Theme::change(new_mode, Some(window), cx);
+    }
+
+    fn on_action_quit(&mut self, _: &JsonFormatterAction, _: &mut Window, cx: &mut Context<Self>) {
+        cx.quit();
     }
 }
 
@@ -224,44 +262,65 @@ impl Render for JsonFormatter {
             self.translate("status_minified").to_string()
         };
 
+        let menu_language_label = self.translate("menu_language").to_string();
+        let menu_theme_label = self.translate("menu_theme").to_string();
+        let menu_quit_label = self.translate("menu_quit").to_string();
+
         v_flex()
             .size_full()
             .gap_2()
+            .on_action(cx.listener(Self::on_action_toggle_language))
+            .on_action(cx.listener(Self::on_action_toggle_theme))
+            .on_action(cx.listener(Self::on_action_quit))
+            .child(
+                TitleBar::new()
+                    .child(
+                        Button::new("menu-jf")
+                            .label("JF")
+                            .dropdown_menu(move |menu, _window, _cx| {
+                                menu.menu(
+                                    menu_language_label.clone(),
+                                    Box::new(JsonFormatterAction::ToggleLanguage),
+                                )
+                                .menu(
+                                    menu_theme_label.clone(),
+                                    Box::new(JsonFormatterAction::ToggleTheme),
+                                )
+                                .separator()
+                                .menu(
+                                    menu_quit_label.clone(),
+                                    Box::new(JsonFormatterAction::Quit),
+                                )
+                            })
+                    )
+            )
             .child(
                 h_flex()
-                    .justify_between()
+                    .gap_2()
+                    .pl_2()
                     .child(
-                        h_flex()
-                            .gap_2()
-                            .child(
-                                Button::new("load-file")
-                                    .label(self.translate("load_file"))
-                                    .on_click(cx.listener(Self::load_from_file))
-                            )
-                            .child(
-                                Button::new("copy")
-                                    .label(self.translate("copy"))
-                                    .on_click(cx.listener(Self::copy_to_clipboard))
-                            )
-                            .child(
-                                Button::new("clear")
-                                    .label(self.translate("clear"))
-                                    .on_click(cx.listener(Self::clear))
-                            )
-                            .child(
-                                Button::new("toggle-format")
-                                    .label(if self.output_mode == OutputMode::Formatted {
-                                        self.translate("minify")
-                                    } else {
-                                        self.translate("format")
-                                    })
-                                    .on_click(cx.listener(Self::toggle_format))
-                            )
+                        Button::new("load-file")
+                            .label(self.translate("load_file"))
+                            .on_click(cx.listener(Self::load_from_file))
                     )
                     .child(
-                        Button::new("language")
-                            .label(self.translate("language"))
-                            .on_click(cx.listener(Self::toggle_language))
+                        Button::new("copy")
+                            .label(self.translate("copy"))
+                            .on_click(cx.listener(Self::copy_to_clipboard))
+                    )
+                    .child(
+                        Button::new("clear")
+                            .label(self.translate("clear"))
+                            .on_click(cx.listener(Self::clear))
+                    )
+                    .child(
+                        Button::new("toggle-format")
+                            .label(if self.output_mode == OutputMode::Formatted {
+                                self.translate("minify")
+                            } else {
+                                self.translate("format")
+                            })
+                            .on_click(cx.listener(Self::toggle_format))
                     )
             )
             .child(
@@ -293,7 +352,12 @@ fn main() {
         gpui_component::init(cx);
 
         cx.spawn(async move |cx| {
-            cx.open_window(WindowOptions::default(), |window, cx| {
+            let options = WindowOptions {
+                window_decorations: Some(WindowDecorations::Client),
+                titlebar: Some(TitleBar::title_bar_options()),
+                ..WindowOptions::default()
+            };
+            cx.open_window(options, |window, cx| {
                 let view = cx.new(|cx| JsonFormatter::new(window, cx));
                 // This first level on the window, should be a Root.
                 cx.new(|cx| Root::new(view, window, cx))
