@@ -82,7 +82,7 @@ impl JsonFormatter {
             return;
         }
 
-        match serde_json::from_str::<serde_json::Value>(&input) {
+        match json5::from_str::<serde_json::Value>(&input) {
             Ok(value) => {
                 let output = match self.output_mode {
                     OutputMode::Formatted => serde_json::to_string_pretty(&value).unwrap_or_default(),
