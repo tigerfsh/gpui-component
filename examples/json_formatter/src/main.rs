@@ -7,11 +7,25 @@ use gpui_component::{
 use gpui_component_assets::Assets;
 use std::time::Instant;
 
+#[derive(Clone, Copy, PartialEq)]
+enum OutputMode {
+    Formatted,
+    Minified,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Language {
+    English,
+    Chinese,
+}
+
+
 pub struct JsonFormatter {
     input_state: Entity<InputState>,
     output_state: Entity<InputState>,
     last_format_time: Option<Instant>,
-    is_formatted: bool,
+    output_mode: OutputMode,
+    language: Language,
     error_message: Option<String>,
     _subscriptions: Vec<Subscription>,
 }
@@ -45,7 +59,8 @@ impl JsonFormatter {
             input_state,
             output_state,
             last_format_time: None,
-            is_formatted: false,
+            output_mode: OutputMode::Formatted,
+            language: Language::English,
             error_message: None,
             _subscriptions: subscriptions,
         };
@@ -62,7 +77,6 @@ impl JsonFormatter {
             self.output_state.update(cx, |state, cx| {
                 state.set_value("", window, cx);
             });
-            self.is_formatted = false;
             self.error_message = None;
             cx.notify();
             return;
@@ -70,11 +84,13 @@ impl JsonFormatter {
 
         match serde_json::from_str::<serde_json::Value>(&input) {
             Ok(value) => {
-                let formatted = serde_json::to_string_pretty(&value).unwrap_or_default();
+                let output = match self.output_mode {
+                    OutputMode::Formatted => serde_json::to_string_pretty(&value).unwrap_or_default(),
+                    OutputMode::Minified => serde_json::to_string(&value).unwrap_or_default(),
+                };
                 self.output_state.update(cx, |state, cx| {
-                    state.set_value(&formatted, window, cx);
+                    state.set_value(&output, window, cx);
                 });
-                self.is_formatted = true;
                 self.error_message = None;
                 self.last_format_time = Some(Instant::now());
             }
@@ -82,7 +98,6 @@ impl JsonFormatter {
                 self.output_state.update(cx, |state, cx| {
                     state.set_value("", window, cx);
                 });
-                self.is_formatted = false;
                 self.error_message = Some(e.to_string());
             }
         }
@@ -152,44 +167,61 @@ impl JsonFormatter {
     }
 
     fn toggle_format(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
-        let input = self.input_state.read(cx).value();
-        if input.trim().is_empty() {
-            return;
-        }
+        // Toggle output mode
+        self.output_mode = match self.output_mode {
+            OutputMode::Formatted => OutputMode::Minified,
+            OutputMode::Minified => OutputMode::Formatted,
+        };
+        // Regenerate output with new mode
+        self.format_json(window, cx);
+    }
 
-        match serde_json::from_str::<serde_json::Value>(&input) {
-            Ok(value) => {
-                let new_output = if self.is_formatted {
-                    // Minify
-                    serde_json::to_string(&value).unwrap_or_default()
-                } else {
-                    // Format
-                    serde_json::to_string_pretty(&value).unwrap_or_default()
-                };
-
-                self.output_state.update(cx, |state, cx| {
-                    state.set_value(&new_output, window, cx);
-                });
-                self.is_formatted = !self.is_formatted;
-                self.error_message = None;
-            }
-            Err(e) => {
-                self.error_message = Some(e.to_string());
-            }
-        }
-
+    fn toggle_language(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        self.language = match self.language {
+            Language::English => Language::Chinese,
+            Language::Chinese => Language::English,
+        };
         cx.notify();
+    }
+
+    fn translate(&self, key: &'static str) -> &'static str {
+        match self.language {
+            Language::English => match key {
+                "load_file" => "Load File",
+                "copy" => "Copy",
+                "clear" => "Clear",
+                "minify" => "Minify",
+                "format" => "Format",
+                "language" => "English",
+                "status_formatted" => "JSON formatted successfully",
+                "status_minified" => "JSON minified successfully",
+                "error_prefix" => "Error: ",
+                _ => key,
+            },
+            Language::Chinese => match key {
+                "load_file" => "加载文件",
+                "copy" => "复制",
+                "clear" => "清空",
+                "minify" => "压缩",
+                "format" => "展开",
+                "language" => "中文",
+                "status_formatted" => "JSON 格式化成功",
+                "status_minified" => "JSON 压缩成功",
+                "error_prefix" => "错误: ",
+                _ => key,
+            },
+        }
     }
 }
 
 impl Render for JsonFormatter {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let status_text = if let Some(error) = &self.error_message {
-            format!("Error: {}", error)
-        } else if self.is_formatted {
-            "JSON formatted successfully".to_string()
+            format!("{}{}", self.translate("error_prefix"), error)
+        } else if self.output_mode == OutputMode::Formatted {
+            self.translate("status_formatted").to_string()
         } else {
-            "JSON minified successfully".to_string()
+            self.translate("status_minified").to_string()
         };
 
         v_flex()
@@ -197,26 +229,39 @@ impl Render for JsonFormatter {
             .gap_2()
             .child(
                 h_flex()
-                    .gap_2()
+                    .justify_between()
                     .child(
-                        Button::new("load-file")
-                            .label("Load File")
-                            .on_click(cx.listener(Self::load_from_file))
+                        h_flex()
+                            .gap_2()
+                            .child(
+                                Button::new("load-file")
+                                    .label(self.translate("load_file"))
+                                    .on_click(cx.listener(Self::load_from_file))
+                            )
+                            .child(
+                                Button::new("copy")
+                                    .label(self.translate("copy"))
+                                    .on_click(cx.listener(Self::copy_to_clipboard))
+                            )
+                            .child(
+                                Button::new("clear")
+                                    .label(self.translate("clear"))
+                                    .on_click(cx.listener(Self::clear))
+                            )
+                            .child(
+                                Button::new("toggle-format")
+                                    .label(if self.output_mode == OutputMode::Formatted {
+                                        self.translate("minify")
+                                    } else {
+                                        self.translate("format")
+                                    })
+                                    .on_click(cx.listener(Self::toggle_format))
+                            )
                     )
                     .child(
-                        Button::new("toggle-format")
-                            .label(if self.is_formatted { "Minify" } else { "Format" })
-                            .on_click(cx.listener(Self::toggle_format))
-                    )
-                    .child(
-                        Button::new("copy")
-                            .label("Copy")
-                            .on_click(cx.listener(Self::copy_to_clipboard))
-                    )
-                    .child(
-                        Button::new("clear")
-                            .label("Clear")
-                            .on_click(cx.listener(Self::clear))
+                        Button::new("language")
+                            .label(self.translate("language"))
+                            .on_click(cx.listener(Self::toggle_language))
                     )
             )
             .child(
@@ -224,22 +269,8 @@ impl Render for JsonFormatter {
                     .gap_2()
                     .flex_1()
                     .h_full()
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .h_full()
-                            .gap_1()
-                            .child(div().text_xs().text_color(cx.theme().muted_foreground).child("Input JSON"))
-                            .child(Input::new(&self.input_state).h_full())
-                    )
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .h_full()
-                            .gap_1()
-                            .child(div().text_xs().text_color(cx.theme().muted_foreground).child("Output JSON"))
-                            .child(Input::new(&self.output_state).h_full().disabled(true))
-                    )
+                    .child(Input::new(&self.input_state).h_full())
+                    .child(Input::new(&self.output_state).h_full().disabled(true))
             )
             .child(
                 div()
