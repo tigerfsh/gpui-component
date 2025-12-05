@@ -93,7 +93,12 @@ impl JsonFormatter {
             return;
         }
 
-        match json5::from_str::<serde_json::Value>(&input) {
+        let de_options = json5::DeserializerOptions {
+            strip_line_terminators_from_keys: true,
+            ..Default::default()
+        };
+
+        match json5::from_str_with_options::<serde_json::Value>(&input, de_options) {
             Ok(value) => {
                 let output = match self.output_mode {
                     OutputMode::Formatted => {
