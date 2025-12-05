@@ -191,14 +191,6 @@ impl JsonFormatter {
         self.format_json(window, cx);
     }
 
-    fn toggle_language(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        self.language = match self.language {
-            Language::English => Language::Chinese,
-            Language::Chinese => Language::English,
-        };
-        cx.notify();
-    }
-
     fn translate(&self, key: &'static str) -> &'static str {
         match self.language {
             Language::English => match key {

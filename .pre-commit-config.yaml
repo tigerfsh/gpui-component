@@ -18,12 +18,12 @@ repos:
         types: [rust]
         files: ^examples/json_formatter/
         args: ["--manifest-path", "examples/json_formatter/Cargo.toml", "--"]
-      - id: cargo-check
-        name: cargo check
-        description: Check the package for errors.
-        entry: cargo check
+      - id: cargo-clippy
+        name: cargo clippy
+        description: Lint the package with clippy.
+        entry: cargo clippy
         language: system
         types: [rust]
         files: ^examples/json_formatter/
         pass_filenames: false
-        args: ["--manifest-path", "examples/json_formatter/Cargo.toml"]
+        args: ["--manifest-path", "examples/json_formatter/Cargo.toml", "--", "-D", "warnings"]
