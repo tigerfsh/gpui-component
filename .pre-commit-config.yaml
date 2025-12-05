@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        files: ^examples/json_formatter/
+      - id: end-of-file-fixer
+        files: ^examples/json_formatter/
+      - id: trailing-whitespace
+        files: ^examples/json_formatter/
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        description: Format files with cargo fmt.
+        entry: cargo fmt
+        language: system
+        types: [rust]
+        files: ^examples/json_formatter/
+        args: ["--manifest-path", "examples/json_formatter/Cargo.toml", "--"]
+      - id: cargo-check
+        name: cargo check
+        description: Check the package for errors.
+        entry: cargo check
+        language: system
+        types: [rust]
+        files: ^examples/json_formatter/
+        pass_filenames: false
+        args: ["--manifest-path", "examples/json_formatter/Cargo.toml"]

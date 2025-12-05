@@ -1,10 +1,10 @@
 use gpui::*;
 use gpui_component::{
+    TitleBar,
     button::*,
     input::{Input, InputEvent, InputState},
     menu::DropdownMenu,
     theme::Theme,
-    TitleBar,
     *,
 };
 use gpui_component_assets::Assets;
@@ -96,7 +96,9 @@ impl JsonFormatter {
         match json5::from_str::<serde_json::Value>(&input) {
             Ok(value) => {
                 let output = match self.output_mode {
-                    OutputMode::Formatted => serde_json::to_string_pretty(&value).unwrap_or_default(),
+                    OutputMode::Formatted => {
+                        serde_json::to_string_pretty(&value).unwrap_or_default()
+                    }
                     OutputMode::Minified => serde_json::to_string(&value).unwrap_or_default(),
                 };
                 self.output_state.update(cx, |state, cx| {
@@ -132,9 +134,11 @@ impl JsonFormatter {
                         let path = paths.remove(0);
                         match std::fs::read_to_string(&path) {
                             Ok(content) => {
-                                input_state.update_in(window, |state, window, cx| {
-                                    state.set_value(&content, window, cx);
-                                }).ok();
+                                input_state
+                                    .update_in(window, |state, window, cx| {
+                                        state.set_value(&content, window, cx);
+                                    })
+                                    .ok();
                             }
                             Err(e) => {
                                 // Could show error dialog here
@@ -230,7 +234,12 @@ impl JsonFormatter {
         }
     }
 
-    fn on_action_toggle_language(&mut self, _: &JsonFormatterAction, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_action_toggle_language(
+        &mut self,
+        _: &JsonFormatterAction,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.language = match self.language {
             Language::English => Language::Chinese,
             Language::Chinese => Language::English,
@@ -238,7 +247,12 @@ impl JsonFormatter {
         cx.notify();
     }
 
-    fn on_action_toggle_theme(&mut self, _: &JsonFormatterAction, window: &mut Window, cx: &mut Context<Self>) {
+    fn on_action_toggle_theme(
+        &mut self,
+        _: &JsonFormatterAction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let current_mode = Theme::global(cx).mode;
         let new_mode = match current_mode {
             gpui_component::theme::ThemeMode::Light => gpui_component::theme::ThemeMode::Dark,
@@ -273,26 +287,20 @@ impl Render for JsonFormatter {
             .on_action(cx.listener(Self::on_action_toggle_theme))
             .on_action(cx.listener(Self::on_action_quit))
             .child(
-                TitleBar::new()
-                    .child(
-                        Button::new("menu-jf")
-                            .label("JF")
-                            .dropdown_menu(move |menu, _window, _cx| {
-                                menu.menu(
-                                    menu_language_label.clone(),
-                                    Box::new(JsonFormatterAction::ToggleLanguage),
-                                )
-                                .menu(
-                                    menu_theme_label.clone(),
-                                    Box::new(JsonFormatterAction::ToggleTheme),
-                                )
-                                .separator()
-                                .menu(
-                                    menu_quit_label.clone(),
-                                    Box::new(JsonFormatterAction::Quit),
-                                )
-                            })
-                    )
+                TitleBar::new().child(Button::new("menu-jf").label("JF").dropdown_menu(
+                    move |menu, _window, _cx| {
+                        menu.menu(
+                            menu_language_label.clone(),
+                            Box::new(JsonFormatterAction::ToggleLanguage),
+                        )
+                        .menu(
+                            menu_theme_label.clone(),
+                            Box::new(JsonFormatterAction::ToggleTheme),
+                        )
+                        .separator()
+                        .menu(menu_quit_label.clone(), Box::new(JsonFormatterAction::Quit))
+                    },
+                )),
             )
             .child(
                 h_flex()
@@ -301,17 +309,17 @@ impl Render for JsonFormatter {
                     .child(
                         Button::new("load-file")
                             .label(self.translate("load_file"))
-                            .on_click(cx.listener(Self::load_from_file))
+                            .on_click(cx.listener(Self::load_from_file)),
                     )
                     .child(
                         Button::new("copy")
                             .label(self.translate("copy"))
-                            .on_click(cx.listener(Self::copy_to_clipboard))
+                            .on_click(cx.listener(Self::copy_to_clipboard)),
                     )
                     .child(
                         Button::new("clear")
                             .label(self.translate("clear"))
-                            .on_click(cx.listener(Self::clear))
+                            .on_click(cx.listener(Self::clear)),
                     )
                     .child(
                         Button::new("toggle-format")
@@ -320,8 +328,8 @@ impl Render for JsonFormatter {
                             } else {
                                 self.translate("format")
                             })
-                            .on_click(cx.listener(Self::toggle_format))
-                    )
+                            .on_click(cx.listener(Self::toggle_format)),
+                    ),
             )
             .child(
                 h_flex()
@@ -329,7 +337,7 @@ impl Render for JsonFormatter {
                     .flex_1()
                     .h_full()
                     .child(Input::new(&self.input_state).h_full())
-                    .child(Input::new(&self.output_state).h_full().disabled(true))
+                    .child(Input::new(&self.output_state).h_full().disabled(true)),
             )
             .child(
                 div()
@@ -339,7 +347,7 @@ impl Render for JsonFormatter {
                     } else {
                         cx.theme().muted_foreground
                     })
-                    .child(status_text)
+                    .child(status_text),
             )
     }
 }
