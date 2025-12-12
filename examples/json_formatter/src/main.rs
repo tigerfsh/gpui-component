@@ -233,9 +233,9 @@ impl Render for JsonFormatter {
                                 .items_center()
                                 .child(
                                     Button::new("format_btn")
-                                        .primary()
+                                        // .primary()
                                         .small()
-                                        .icon(IconName::ChevronRight)
+                                        .label(">>>")
                                         .on_click(cx.listener(Self::on_format_click)),
                                 ),
                         )
