@@ -14,6 +14,7 @@ mod time;
 mod title_bar;
 mod virtual_list;
 mod window_border;
+mod window_ext;
 
 pub(crate) mod actions;
 
@@ -67,13 +68,6 @@ pub mod tooltip;
 pub mod tree;
 pub use time::{calendar, date_picker};
 
-#[cfg(feature = "webview")]
-pub mod webview;
-
-// re-export
-#[cfg(feature = "webview")]
-pub use wry;
-
 pub use crate::Disableable;
 pub use event::InteractiveElementExt;
 pub use geometry::*;
@@ -82,12 +76,13 @@ pub use index_path::IndexPath;
 pub use input::{Rope, RopeExt, RopeLines};
 #[cfg(any(feature = "inspector", debug_assertions))]
 pub use inspector::*;
-pub use root::{Root, WindowExt};
+pub use root::Root;
 pub use styled::*;
 pub use theme::*;
 pub use title_bar::*;
 pub use virtual_list::{VirtualList, VirtualListScrollHandle, h_virtual_list, v_virtual_list};
 pub use window_border::{WindowBorder, window_border, window_paddings};
+pub use window_ext::WindowExt;
 
 rust_i18n::i18n!("locales", fallback = "en");
 

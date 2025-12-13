@@ -282,7 +282,7 @@ where
                 ColGroup {
                     width: column.width,
                     bounds: Bounds::default(),
-                    column: column.clone(),
+                    column,
                 }
             })
             .collect();
@@ -559,7 +559,7 @@ where
         let threshold = self.delegate.load_more_threshold();
         // Securely handle subtract logic to prevent attempt to subtract with overflow
         if visible_end >= rows_count.saturating_sub(threshold) {
-            if !self.delegate.is_eof(cx) {
+            if !self.delegate.has_more(cx) {
                 return;
             }
 
@@ -865,7 +865,7 @@ where
             })
     }
 
-    fn render_table_head(
+    fn render_table_header(
         &mut self,
         left_columns_count: usize,
         window: &mut Window,
@@ -879,13 +879,18 @@ where
             self.fixed_head_cols_bounds = Bounds::default();
         }
 
-        h_flex()
+        let mut header = self.delegate_mut().render_header(window, cx);
+        let style = header.style().clone();
+
+        header
+            .h_flex()
             .w_full()
             .h(self.options.size.table_row_height())
             .flex_shrink_0()
             .border_b_1()
             .border_color(cx.theme().border)
             .text_color(cx.theme().table_head_foreground)
+            .refine_style(&style)
             .when(left_columns_count > 0, |this| {
                 let view = view.clone();
                 // Render left fixed columns
@@ -1298,7 +1303,7 @@ where
             .id("table-inner")
             .size_full()
             .overflow_hidden()
-            .child(self.render_table_head(left_columns_count, window, cx))
+            .child(self.render_table_header(left_columns_count, window, cx))
             .context_menu({
                 let view = cx.entity().clone();
                 move |this, window: &mut Window, cx: &mut Context<PopupMenu>| {
@@ -1382,7 +1387,7 @@ where
                             .flex_grow()
                             .size_full()
                             .with_sizing_behavior(ListSizingBehavior::Auto)
-                            .track_scroll(self.vertical_scroll_handle.clone())
+                            .track_scroll(&self.vertical_scroll_handle)
                             .into_any_element(),
                         ),
                     )

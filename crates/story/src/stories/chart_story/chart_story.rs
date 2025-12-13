@@ -5,14 +5,15 @@ use gpui::{
 };
 use gpui_component::{
     ActiveTheme, StyledExt,
-    chart::{AreaChart, BarChart, LineChart, PieChart},
+    chart::{AreaChart, BarChart, CandlestickChart, LineChart, PieChart},
     divider::Divider,
     dock::PanelControl,
     h_flex, v_flex,
 };
 use serde::Deserialize;
 
-use crate::{Story, chart_story::StackedBarChart};
+use super::StackedBarChart;
+use crate::Story;
 
 #[derive(Clone, Deserialize)]
 struct MonthlyDevice {
@@ -36,26 +37,41 @@ pub struct DailyDevice {
     pub watch: f64,
 }
 
+#[derive(Clone, Deserialize)]
+pub struct StockPrice {
+    pub date: SharedString,
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+}
+
 pub struct ChartStory {
     focus_handle: FocusHandle,
     daily_devices: Vec<DailyDevice>,
     monthly_devices: Vec<MonthlyDevice>,
+    stock_prices: Vec<StockPrice>,
 }
 
 impl ChartStory {
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         let daily_devices = serde_json::from_str::<Vec<DailyDevice>>(include_str!(
-            "../fixtures/daily-devices.json"
+            "../../fixtures/daily-devices.json"
         ))
         .unwrap();
         let monthly_devices = serde_json::from_str::<Vec<MonthlyDevice>>(include_str!(
-            "../fixtures/monthly-devices.json"
+            "../../fixtures/monthly-devices.json"
+        ))
+        .unwrap();
+        let stock_prices = serde_json::from_str::<Vec<StockPrice>>(include_str!(
+            "../../fixtures/stock-prices.json"
         ))
         .unwrap();
 
         Self {
             daily_devices,
             monthly_devices,
+            stock_prices,
             focus_handle: cx.focus_handle(),
         }
     }
@@ -97,7 +113,7 @@ fn chart_container(
 ) -> impl IntoElement {
     v_flex()
         .flex_1()
-        .h_full()
+        .h(px(400.))
         .border_1()
         .border_color(cx.theme().border)
         .rounded_lg()
@@ -140,7 +156,7 @@ impl Render for ChartStory {
             .gap_y_4()
             .bg(cx.theme().background)
             .child(
-                div().h(px(400.)).child(chart_container(
+                div().child(chart_container(
                     "Area Chart - Stacked",
                     AreaChart::new(self.daily_devices.clone())
                         .x(|d| d.date.clone())
@@ -165,8 +181,8 @@ impl Render for ChartStory {
             )
             .child(
                 h_flex()
-                    .gap_x_8()
-                    .h(px(450.))
+                    .flex_wrap()
+                    .gap_4()
                     .child(chart_container(
                         "Pie Chart",
                         PieChart::new(self.monthly_devices.clone())
@@ -201,8 +217,8 @@ impl Render for ChartStory {
             .child(Divider::horizontal())
             .child(
                 h_flex()
-                    .gap_x_4()
-                    .h(px(400.))
+                    .flex_wrap()
+                    .gap_4()
                     .child(chart_container(
                         "Bar Chart",
                         BarChart::new(self.monthly_devices.clone())
@@ -242,8 +258,8 @@ impl Render for ChartStory {
             .child(Divider::horizontal())
             .child(
                 h_flex()
-                    .gap_x_4()
-                    .h(px(400.))
+                    .flex_wrap()
+                    .gap_4()
                     .child(chart_container(
                         "Line Chart",
                         LineChart::new(self.monthly_devices.clone())
@@ -284,8 +300,8 @@ impl Render for ChartStory {
             .child(Divider::horizontal())
             .child(
                 h_flex()
-                    .gap_x_4()
-                    .h(px(400.))
+                    .flex_wrap()
+                    .gap_4()
                     .child(chart_container(
                         "Area Chart",
                         AreaChart::new(self.monthly_devices.clone())
@@ -322,6 +338,59 @@ impl Render for ChartStory {
                                 linear_color_stop(cx.theme().chart_1.opacity(0.4), 1.),
                                 linear_color_stop(cx.theme().background.opacity(0.3), 0.),
                             )),
+                        false,
+                        cx,
+                    )),
+            )
+            .child(Divider::horizontal())
+            .child(
+                h_flex()
+                    .flex_wrap()
+                    .gap_4()
+                    .child(chart_container(
+                        "Candlestick Chart",
+                        CandlestickChart::new(self.stock_prices.clone())
+                            .x(|d| d.date.clone())
+                            .open(|d| d.open)
+                            .high(|d| d.high)
+                            .low(|d| d.low)
+                            .close(|d| d.close),
+                        false,
+                        cx,
+                    ))
+                    .child(chart_container(
+                        "Candlestick Chart - Narrow",
+                        CandlestickChart::new(self.stock_prices.clone())
+                            .x(|d| d.date.clone())
+                            .open(|d| d.open)
+                            .high(|d| d.high)
+                            .low(|d| d.low)
+                            .close(|d| d.close)
+                            .body_width_ratio(0.5),
+                        false,
+                        cx,
+                    ))
+                    .child(chart_container(
+                        "Candlestick Chart - Wide",
+                        CandlestickChart::new(self.stock_prices.clone())
+                            .x(|d| d.date.clone())
+                            .open(|d| d.open)
+                            .high(|d| d.high)
+                            .low(|d| d.low)
+                            .close(|d| d.close)
+                            .body_width_ratio(1.0),
+                        false,
+                        cx,
+                    ))
+                    .child(chart_container(
+                        "Candlestick Chart - Tick Margin",
+                        CandlestickChart::new(self.stock_prices.clone())
+                            .x(|d| d.date.clone())
+                            .open(|d| d.open)
+                            .high(|d| d.high)
+                            .low(|d| d.low)
+                            .close(|d| d.close)
+                            .tick_margin(2),
                         false,
                         cx,
                     )),

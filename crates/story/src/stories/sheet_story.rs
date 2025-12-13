@@ -6,7 +6,6 @@ use gpui::{
     ParentElement, Render, SharedString, Styled, Task, Timer, WeakEntity, Window, div,
     prelude::FluentBuilder as _, px,
 };
-use raw_window_handle::HasWindowHandle;
 
 use gpui_component::{
     ActiveTheme as _, Icon, IconName, IndexPath, Placement, WindowExt as _,
@@ -17,8 +16,6 @@ use gpui_component::{
     input::{Input, InputState},
     list::{List, ListDelegate, ListItem, ListState},
     v_flex,
-    webview::WebView,
-    wry,
 };
 
 use crate::TestAction;
@@ -65,7 +62,12 @@ impl ListDelegate for ListItemDeletegate {
         })
     }
 
-    fn render_item(&mut self, ix: IndexPath, _: &mut Window, _: &mut Context<ListState<Self>>) -> Option<Self::Item> {
+    fn render_item(
+        &mut self,
+        ix: IndexPath,
+        _: &mut Window,
+        _: &mut Context<ListState<Self>>,
+    ) -> Option<Self::Item> {
         let confirmed = Some(ix.row) == self.confirmed_index;
 
         if let Some(item) = self.matches.get(ix.row) {
@@ -243,12 +245,7 @@ impl SheetStory {
             items: items.clone(),
             matches: items.clone(),
         };
-        let list = cx.new(|cx| {
-            let mut list = ListState::new(delegate, window, cx).searchable(true);
-            list.focus(window, cx);
-            list
-        });
-
+        let list = cx.new(|cx| ListState::new(delegate, window, cx).searchable(true));
         let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Your Name"));
         let input2 = cx.new(|cx| {
             InputState::new(window, cx).placeholder("For test focus back on dialog close.")
@@ -271,9 +268,9 @@ impl SheetStory {
     fn open_sheet_at(&mut self, placement: Placement, window: &mut Window, cx: &mut Context<Self>) {
         let list = self.list.clone();
 
-        let list_h = match placement {
+        let drawer_h = match placement {
             Placement::Left | Placement::Right => px(400.),
-            Placement::Top | Placement::Bottom => px(160.),
+            Placement::Top | Placement::Bottom => px(540.),
         };
 
         let overlay = self.overlay;
@@ -283,26 +280,28 @@ impl SheetStory {
         window.open_sheet_at(placement, cx, move |this, _, cx| {
             this.overlay(overlay)
                 .overlay_closable(overlay_closable)
-                .size(px(400.))
+                .size(drawer_h)
                 .title("Sheet Title")
-                .gap_4()
-                .child(Input::new(&input1))
-                .child(DatePicker::new(&date).placeholder("Date of Birth"))
                 .child(
-                    Button::new("send-notification")
-                        .child("Test Notification")
-                        .on_click(|_, window, cx| {
-                            window.push_notification("Hello this is message from Sheet.", cx)
-                        }),
-                )
-                .child(
-                    List::new(&list)
-                        .border_1()
-                        .border_color(cx.theme().border)
-                        .rounded(cx.theme().radius)
+                    v_flex()
                         .size_full()
-                        .flex_1()
-                        .h(list_h),
+                        .gap_3()
+                        .child(Input::new(&input1))
+                        .child(DatePicker::new(&date).placeholder("Date of Birth"))
+                        .child(
+                            Button::new("send-notification")
+                                .child("Test Notification")
+                                .on_click(|_, window, cx| {
+                                    window
+                                        .push_notification("Hello this is message from Sheet.", cx)
+                                }),
+                        )
+                        .child(
+                            List::new(&list)
+                                .border_1()
+                                .border_color(cx.theme().border)
+                                .rounded(cx.theme().radius),
+                        ),
                 )
                 .footer(
                     h_flex()
@@ -415,6 +414,23 @@ impl Render for SheetStory {
                             ),
                     )
                     .child(
+                        section("Scrollable Sheet").max_w_md().child(
+                            Button::new("show-scrollable-sheet")
+                                .outline()
+                                .label("Scrollable Sheet...")
+                                .on_click(cx.listener(|_, _, window, cx| {
+                                    window.open_sheet_at(
+                                        Placement::Right,
+                                        cx,
+                                        move |this, _, _| {
+                                            this.title("Scrollable Sheet")
+                                                .child("This is a scrollable sheet.\n".repeat(150))
+                                        },
+                                    );
+                                })),
+                        ),
+                    )
+                    .child(
                         section("Focus back test")
                             .max_w_md()
                             .child(Input::new(&self.input2))
@@ -432,38 +448,6 @@ impl Render for SheetStory {
                                         \nthis still can handle the action.",
                                     ),
                             ),
-                    )
-                    .child(
-                        section("WebView in Sheet").child(
-                            Button::new("webview")
-                                .outline()
-                                .label("Open WebView")
-                                .on_click(cx.listener(|_, _, window, cx| {
-                                    let webview = cx.new(|cx| {
-                                        let webview = wry::WebViewBuilder::new()
-                                            .build_as_child(
-                                                &window.window_handle().expect("No window handle"),
-                                            )
-                                            .unwrap();
-
-                                        WebView::new(webview, window, cx)
-                                    });
-                                    webview.update(cx, |webview, _| {
-                                        webview.load_url("https://github.com/explore");
-                                    });
-                                    window.open_sheet(cx, move |sheet, window, cx| {
-                                        let height =
-                                            window.window_bounds().get_bounds().size.height;
-                                        let webview_bounds = webview.read(cx).bounds();
-
-                                        sheet.title("WebView Title").p_0().child(
-                                            div()
-                                                .h(height - webview_bounds.origin.y)
-                                                .child(webview.clone()),
-                                        )
-                                    });
-                                })),
-                        ),
                     )
                     .when_some(self.selected_value.clone(), |this, selected_value| {
                         this.child(

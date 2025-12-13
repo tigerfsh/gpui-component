@@ -27,8 +27,31 @@ use gpui_component_assets::Assets;
 use gpui_component_story::Open;
 use lsp_types::{
     CodeAction, CodeActionKind, CompletionContext, CompletionItem, CompletionResponse,
-    CompletionTextEdit, InsertReplaceEdit, TextEdit, WorkspaceEdit,
+    CompletionTextEdit, InlineCompletionContext, InlineCompletionItem, InlineCompletionResponse,
+    InsertReplaceEdit, InsertTextFormat, TextEdit, WorkspaceEdit,
 };
+
+
+enum Lang {
+    BuiltIn(Language),
+    External(&'static str),
+}
+
+impl Lang {
+    fn name(&self) -> &str {
+        match self {
+            Lang::BuiltIn(lang) => lang.name(),
+            Lang::External(lang) => lang,
+        }
+    }
+
+    fn from_str(s: &str) -> Self {
+        match s {
+            "nv" => Lang::External("navi"),
+            _ => Lang::BuiltIn(Language::from_str(s)),
+        }
+    }
+}
 
 fn init() {
     LanguageRegistry::singleton().register(
@@ -48,7 +71,7 @@ pub struct Example {
     editor: Entity<InputState>,
     tree_state: Entity<TreeState>,
     go_to_line_state: Entity<InputState>,
-    language: Language,
+    language: Lang,
     line_number: bool,
     indent_guides: bool,
     soft_wrap: bool,
@@ -184,6 +207,45 @@ impl CompletionProvider for ExampleLspStore {
                 .collect::<Vec<_>>();
 
             Ok(CompletionResponse::Array(items))
+        })
+    }
+
+    fn inline_completion(
+        &self,
+        rope: &Rope,
+        offset: usize,
+        _trigger: InlineCompletionContext,
+        _window: &mut Window,
+        cx: &mut Context<InputState>,
+    ) -> Task<Result<InlineCompletionResponse>> {
+        let rope = rope.clone();
+        cx.background_spawn(async move {
+            // Get the current line text before cursor using RopeExt
+            let point = rope.offset_to_point(offset);
+            let line_start = rope.line_start_offset(point.row);
+            let current_line = rope.slice(line_start..offset).to_string();
+
+            // Simple pattern matching for demo
+            let suggestion =
+                if current_line.trim_start().starts_with("fn ") && !current_line.contains('{') {
+                    Some("() {\n    // Write your code here..\n}".into())
+                } else {
+                    None
+                };
+
+            if let Some(insert_text) = suggestion {
+                Ok(InlineCompletionResponse::Array(vec![
+                    InlineCompletionItem {
+                        insert_text,
+                        filter_text: None,
+                        range: None,
+                        command: None,
+                        insert_text_format: Some(InsertTextFormat::SNIPPET),
+                    },
+                ]))
+            } else {
+                Ok(InlineCompletionResponse::Array(vec![]))
+            }
         })
     }
 
@@ -630,12 +692,12 @@ fn build_file_items(ignorer: &Ignorer, root: &PathBuf, path: &PathBuf) -> Vec<Tr
 
 impl Example {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let default_language = Language::from_str("rust");
+        let default_language = Lang::BuiltIn(Language::Rust);
         let lsp_store = ExampleLspStore::new();
 
         let editor = cx.new(|cx| {
             let mut editor = InputState::new(window, cx)
-                .code_editor(default_language.name())
+                .code_editor(default_language.name().to_string())
                 .line_number(true)
                 .indent_guides(true)
                 .tab_size(TabSize {
@@ -828,14 +890,14 @@ impl Example {
             .extension()
             .and_then(|ext| ext.to_str())
             .unwrap_or_default();
-        let language = Language::from_str(&language);
+        let language = Lang::from_str(&language);
         let content = std::fs::read_to_string(&path)?;
 
         window
             .spawn(cx, async move |window| {
                 _ = view.update_in(window, |this, window, cx| {
                     _ = this.editor.update(cx, |this, cx| {
-                        this.set_highlighter(language.name(), cx);
+                        this.set_highlighter(language.name().to_string(), cx);
                         this.set_value(content, window, cx);
                     });
 

@@ -674,9 +674,12 @@ impl PopupMenu {
     {
         for item in items {
             match item.into() {
-                OwnedMenuItem::Action { name, action, .. } => {
-                    self = self.menu(name, action.boxed_clone())
-                }
+                OwnedMenuItem::Action {
+                    name,
+                    action,
+                    checked,
+                    ..
+                } => self = self.menu_with_check(name, checked, action.boxed_clone()),
                 OwnedMenuItem::Separator => {
                     self = self.separator();
                 }
@@ -1184,7 +1187,11 @@ impl PopupMenu {
                                 .items_center()
                                 .justify_between()
                                 .child(label.clone())
-                                .child(IconName::ChevronRight),
+                                .child(
+                                    Icon::new(IconName::ChevronRight)
+                                        .xsmall()
+                                        .text_color(cx.theme().muted_foreground),
+                                ),
                         ),
                 )
                 .when(selected, |this| {
@@ -1232,13 +1239,10 @@ impl Render for PopupMenu {
         let view = cx.entity().clone();
         let items_count = self.menu_items.len();
 
-        let max_height = self.max_height.map_or_else(
-            || {
-                let window_half_height = window.window_bounds().get_bounds().size.height * 0.5;
-                window_half_height.min(px(450.))
-            },
-            |height| height,
-        );
+        let max_height = self.max_height.unwrap_or_else(|| {
+            let window_half_height = window.window_bounds().get_bounds().size.height * 0.5;
+            window_half_height.min(px(450.))
+        });
 
         let has_left_icon = self
             .menu_items

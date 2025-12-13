@@ -41,7 +41,7 @@ struct Counter {
 }
 
 static ALL_COUNTERS: LazyLock<Vec<Counter>> =
-    LazyLock::new(|| serde_json::from_str(include_str!("./fixtures/counters.json")).unwrap());
+    LazyLock::new(|| serde_json::from_str(include_str!("../fixtures/counters.json")).unwrap());
 static INCREMENT_ID: LazyLock<std::sync::Mutex<usize>> = LazyLock::new(|| std::sync::Mutex::new(0));
 
 impl Counter {
@@ -352,8 +352,8 @@ impl TableDelegate for StockTableDelegate {
         self.stocks.len()
     }
 
-    fn column(&self, col_ix: usize, _cx: &App) -> &Column {
-        &self.columns[col_ix]
+    fn column(&self, col_ix: usize, _cx: &App) -> Column {
+        self.columns[col_ix].clone()
     }
 
     fn render_th(
@@ -561,12 +561,15 @@ impl TableDelegate for StockTableDelegate {
         self.full_loading
     }
 
-    fn is_eof(&self, _: &App) -> bool {
+    fn has_more(&self, _: &App) -> bool {
         if !self.lazy_load {
-            return true;
+            return false;
+        }
+        if self.loading {
+            return false;
         }
 
-        return !self.loading && !self.eof;
+        return !self.eof;
     }
 
     fn load_more_threshold(&self) -> usize {

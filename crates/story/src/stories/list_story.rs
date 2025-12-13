@@ -270,7 +270,12 @@ impl ListDelegate for CompanyListDelegate {
         )
     }
 
-    fn render_item(&mut self, ix: IndexPath, _: &mut Window, _: &mut Context<ListState<Self>>) -> Option<Self::Item> {
+    fn render_item(
+        &mut self,
+        ix: IndexPath,
+        _: &mut Window,
+        _: &mut Context<ListState<Self>>,
+    ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(company) = self.matched_companies[ix.section].get(ix.row) {
             return Some(CompanyListItem::new(ix, company.clone(), selected));
@@ -283,8 +288,12 @@ impl ListDelegate for CompanyListDelegate {
         self.loading
     }
 
-    fn is_eof(&self, _: &App) -> bool {
-        return !self.loading && !self.eof;
+    fn has_more(&self, _: &App) -> bool {
+        if self.loading {
+            return false;
+        }
+
+        return !self.eof;
     }
 
     fn load_more_threshold(&self) -> usize {

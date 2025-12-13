@@ -23,7 +23,7 @@ pub trait TableDelegate: Sized + 'static {
     /// Returns the table column at the given index.
     ///
     /// This only call on Table prepare or refresh.
-    fn column(&self, col_ix: usize, cx: &App) -> &Column;
+    fn column(&self, col_ix: usize, cx: &App) -> Column;
 
     /// Perform sort on the column at the given index.
     fn perform_sort(
@@ -33,6 +33,15 @@ pub trait TableDelegate: Sized + 'static {
         window: &mut Window,
         cx: &mut Context<TableState<Self>>,
     ) {
+    }
+
+    /// Render the table head row.
+    fn render_header(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> Stateful<Div> {
+        div().id("header")
     }
 
     /// Render the header cell at the given column index, default to the column name.
@@ -48,13 +57,15 @@ pub trait TableDelegate: Sized + 'static {
     }
 
     /// Render the row at the given row and column.
+    ///
+    /// Not include the table head row.
     fn render_tr(
         &mut self,
         row_ix: usize,
         window: &mut Window,
         cx: &mut Context<TableState<Self>>,
     ) -> Stateful<Div> {
-        h_flex().id(("row", row_ix))
+        div().id(("row", row_ix))
     }
 
     /// Render the context menu for the row at the given row index.
@@ -120,9 +131,9 @@ pub trait TableDelegate: Sized + 'static {
 
     /// Return true to enable load more data when scrolling to the bottom.
     ///
-    /// Default: true
-    fn is_eof(&self, cx: &App) -> bool {
-        true
+    /// Default: false
+    fn has_more(&self, cx: &App) -> bool {
+        false
     }
 
     /// Returns a threshold value (n rows), of course, when scrolling to the bottom,
