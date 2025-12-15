@@ -12,6 +12,19 @@ gpui.workspace = true
 gpui-component = { workspace = true }
 json5 = { path = "../../crates/json5" }
 rfd = "0.14"
+rust-embed = { version = "8", features = ["interpolate-folder-path"] }
+
+[package.metadata.bundle]
+name = "Json Formatter"
+identifier = "com.example.json-formatter"
+icon = ["icons/jf-icon.png"]
+version = "0.1.0"
+copyright = "Copyright 2024"
+category = "Utility"
+short_description = "A JSON formatter application"
+long_description = """
+A simple JSON formatter application built with GPUI.
+"""
 
 [lints]
 workspace = true

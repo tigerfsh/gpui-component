@@ -3827,6 +3827,7 @@ dependencies = [
  "gpui-component",
  "json5",
  "rfd",
+ "rust-embed",
  "serde",
  "serde_json",
 ]
