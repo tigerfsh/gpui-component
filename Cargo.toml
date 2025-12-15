@@ -16,6 +16,7 @@ members = [
     "examples/window_title",
     "examples/dialog_overlay",
     "examples/webview",
+    "examples/json_formatter",
 ]
 resolver = "2"
 
