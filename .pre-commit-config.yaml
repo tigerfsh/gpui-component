@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt-json-formatter
+        name: Cargo fmt (json_formatter)
+        entry: bash -c 'cd examples/json_formatter && cargo fmt --check'
+        language: system
+        files: ^examples/json_formatter/.*\.rs$
+        pass_filenames: false
+        
+      - id: cargo-clippy-json-formatter
+        name: Cargo clippy (json_formatter)
+        entry: bash -c 'cd examples/json_formatter && cargo clippy -- -D warnings'
+        language: system
+        files: ^examples/json_formatter/.*\.rs$
+        pass_filenames: false
+        
+      - id: cargo-check-json-formatter
+        name: Cargo check (json_formatter)
+        entry: bash -c 'cd examples/json_formatter && cargo check'
+        language: system
+        files: ^examples/json_formatter/.*\.rs$
+        pass_filenames: false

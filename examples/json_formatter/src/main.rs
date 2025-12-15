@@ -2,26 +2,20 @@
 
 use gpui::*;
 use gpui_component::{
-    h_flex, v_flex,
     button::Button,
-    label::Label,
+    h_flex,
     input::{Input, InputEvent, InputState},
-    Root, *
+    label::Label,
+    v_flex, Root, *,
 };
 use gpui_component_assets::Assets;
 use serde_json::Value;
 use std::fs;
 use tracing::{info, Level};
-use tracing_subscriber;
 
 actions!(
     json_formatter,
-    [
-        OpenFile,
-        ToggleCompression,
-        Clear,
-        OpenSettings,
-    ]
+    [OpenFile, ToggleCompression, Clear, OpenSettings,]
 );
 
 pub struct JsonFormatter {
@@ -41,7 +35,7 @@ impl JsonFormatter {
                 .line_number(true)
                 .placeholder("Enter JSON here...")
         });
-        
+
         let output_editor = cx.new(|cx| {
             InputState::new(window, cx)
                 .multi_line(true)
@@ -50,17 +44,14 @@ impl JsonFormatter {
                 .placeholder("Formatted JSON will appear here...")
         });
 
-        let _subscriptions = vec![
-            cx.subscribe_in(&input_editor, window, {
-                move |this, _, ev: &InputEvent, window, cx| match ev {
-                    InputEvent::Change => {
-                        this.parse_input(window, cx);
-                        cx.notify();
-                    }
-                    _ => {}
+        let _subscriptions = vec![cx.subscribe_in(&input_editor, window, {
+            move |this, _, ev: &InputEvent, window, cx| {
+                if let InputEvent::Change = ev {
+                    this.parse_input(window, cx);
+                    cx.notify();
                 }
-            })
-        ];
+            }
+        })];
 
         Self {
             input_editor,
@@ -73,7 +64,7 @@ impl JsonFormatter {
 
     fn parse_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         info!("Parsing input text");
-        
+
         let input_text = self.input_editor.read(cx).value();
         if input_text.is_empty() {
             self.output_editor.update(cx, |state, cx| {
@@ -83,34 +74,27 @@ impl JsonFormatter {
             return;
         }
 
-        // Try parsing with serde_json first
-        match serde_json::from_str::<Value>(&input_text) {
+        // 尝试使用 serde_json 或 json5 解析，两个都不行就报错
+        let parsed = serde_json::from_str::<Value>(&input_text).or_else(|serde_err| {
+            json5::from_str::<Value>(&input_text).map_err(|json5_err| (serde_err, json5_err))
+        });
+
+        match parsed {
             Ok(value) => {
-                info!("Parsed successfully with serde_json");
                 self.format_output(value, window, cx);
                 self.error_message = None;
             }
-            Err(serde_err) => {
-                // If serde_json fails, try with json5
-                match json5::from_str::<Value>(&input_text) {
-                    Ok(value) => {
-                        info!("Parsed successfully with json5");
-                        self.format_output(value, window, cx);
-                        self.error_message = None;
-                    }
-                    Err(json5_err) => {
-                        // Both parsers failed, show error
-                        info!("Failed to parse with both serde_json and json5");
-                        self.error_message = Some(format!(
-                            "JSON parsing error:\nserde_json: {}\njson5: {}",
-                            serde_err, json5_err
-                        ).into());
-                        
-                        self.output_editor.update(cx, |state, cx| {
-                            state.set_value("".to_string(), window, cx);
-                        });
-                    }
-                }
+            Err((serde_err, json5_err)) => {
+                self.error_message = Some(
+                    format!(
+                        "JSON parsing error:\nserde_json: {}\njson5: {}",
+                        serde_err, json5_err
+                    )
+                    .into(),
+                );
+                self.output_editor.update(cx, |state, cx| {
+                    state.set_value("".to_string(), window, cx);
+                });
             }
         }
     }
@@ -156,22 +140,30 @@ impl JsonFormatter {
                 if let Some(path) = paths.first() {
                     match fs::read_to_string(path) {
                         Ok(content) => {
-                            _ = window.update(|window, cx| {
-                                _ = view.update(cx, |view: &mut JsonFormatter, cx| {
-                                    view.input_editor.update(cx, |state: &mut InputState, cx| {
-                                        state.set_value(content, window, cx);
+                            window
+                                .update(|window, cx| {
+                                    view.update(cx, |view: &mut JsonFormatter, cx| {
+                                        view.input_editor.update(
+                                            cx,
+                                            |state: &mut InputState, cx| {
+                                                state.set_value(content, window, cx);
+                                            },
+                                        );
+                                        view.parse_input(window, cx);
                                     });
-                                    view.parse_input(window, cx);
-                                });
-                            });
+                                })
+                                .ok();
                         }
                         Err(e) => {
-                            _ = window.update(|window, cx| {
-                                _ = view.update(cx, |view: &mut JsonFormatter, cx| {
-                                    view.error_message = Some(format!("Error reading file: {}", e).into());
-                                    cx.notify();
-                                });
-                            });
+                            window
+                                .update(|_window, cx| {
+                                    view.update(cx, |view: &mut JsonFormatter, cx| {
+                                        view.error_message =
+                                            Some(format!("Error reading file: {}", e).into());
+                                        cx.notify();
+                                    });
+                                })
+                                .ok();
                         }
                     }
                 }
@@ -213,7 +205,7 @@ impl Render for JsonFormatter {
             KeyBinding::new("cmd-e", ToggleCompression, None),
             KeyBinding::new("cmd-k", Clear, None),
         ]);
-        
+
         v_flex()
             .size_full()
             .child(self.render_menu_bar(cx))
@@ -285,11 +277,7 @@ impl JsonFormatter {
                     .items_center()
                     .child(Label::new("Input")),
             )
-            .child(
-                Input::new(&self.input_editor)
-                    .h_full()
-                    .w_full()
-            )
+            .child(Input::new(&self.input_editor).h_full().w_full())
     }
 
     fn render_output_panel(&self, _cx: &mut Context<Self>) -> impl IntoElement {
@@ -303,11 +291,7 @@ impl JsonFormatter {
                     .items_center()
                     .child(Label::new("Output")),
             )
-            .child(
-                Input::new(&self.output_editor)
-                    .h_full()
-                    .w_full()
-            )
+            .child(Input::new(&self.output_editor).h_full().w_full())
     }
 
     fn render_error_panel(&self) -> impl IntoElement {
@@ -327,9 +311,7 @@ impl JsonFormatter {
 
 fn main() {
     // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .init();
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     info!("Starting JSON Formatter application");
 
@@ -339,7 +321,7 @@ fn main() {
         info!("Initializing components");
         gpui_component::init(cx);
         cx.activate(true);
-        
+
         info!("Setting up window");
         let options = WindowOptions {
             titlebar: Some(TitlebarOptions {
@@ -355,7 +337,7 @@ fn main() {
                 let view = cx.new(|cx| JsonFormatter::new(window, cx));
                 cx.new(|cx| Root::new(view, window, cx))
             })?;
-            
+
             Ok::<_, anyhow::Error>(())
         })
         .detach();
