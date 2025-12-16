@@ -14,3 +14,16 @@ anyhow = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 json5 = { path = "../../crates/json5" }
+
+[package.metadata.bundle]
+name = "JSON Formatter"
+identifier = "com.example.json-formatter"
+version = "0.1.0"
+category = "Developer Tool"
+copyright = "Copyright (c) 2025 Example"
+short_description = "A JSON formatter tool with GPUI UI"
+long_description = """
+A cross-platform JSON formatter application built with GPUI that supports both standard JSON and JSON5 formats.
+Features include syntax highlighting, pretty printing, compression, and file loading capabilities.
+"""
+icon = ["assets/icons/icon.png"]
