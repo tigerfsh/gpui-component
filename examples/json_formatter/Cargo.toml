@@ -26,4 +26,5 @@ long_description = """
 A cross-platform JSON formatter application built with GPUI that supports both standard JSON and JSON5 formats.
 Features include syntax highlighting, pretty printing, compression, and file loading capabilities.
 """
-icon = ["assets/icons/icon.png"]
+resources = ["assets/icons/*.png"]
+icon = ["jf-icon128x128.png"]

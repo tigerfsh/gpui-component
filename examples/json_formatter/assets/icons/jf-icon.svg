@@ -1,0 +1,8 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- 圆形背景（样式与原图标一致） -->
+  <circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#2f5496" stroke-width="2"/>
+  <!-- J 字母（替换原 L，保持线条风格） -->
+  <path d="M20 20 v18 c0 5 2 8 6 8 h4" fill="none" stroke="#2f5496" stroke-width="3" stroke-linecap="round"/>
+  <!-- F 字母（与原图标完全一致） -->
+  <path d="M38 20 v26 M38 20 h10 M38 33 h8" fill="none" stroke="#2f5496" stroke-width="3" stroke-linecap="round"/>
+</svg>
