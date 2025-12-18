@@ -1,0 +1,4 @@
+[submodule "crates/json5"]
+	path = crates/json5
+	url = git@github.com:tigerfsh/json5-rs.git
+	branch = dev_20251218
